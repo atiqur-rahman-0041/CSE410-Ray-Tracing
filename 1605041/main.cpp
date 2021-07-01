@@ -16,6 +16,10 @@ double angle;
 
 double m, theta;
 
+int levelOfRecursion, imageDimension, numberOfObjects, numberOfLightSource;
+vector<Object*> objectArray;
+vector<Light> lightSourceArray;
+
 Point pos;
 Vector u,r,l;
 
@@ -490,15 +494,97 @@ void init(){
 	//far distance
 }
 
+void loadData(string sceneFilePath){
+    ifstream sceneFile(sceneFilePath);
+    string lineSegment;
+     //while(getline(sceneFile, line_segment)){
+        //cout << line_segment << endl;
+    //}
+    sceneFile >> levelOfRecursion >> imageDimension >> numberOfObjects;
+
+    for(int i=0; i<numberOfObjects; i++){
+        sceneFile >> lineSegment;
+        if(lineSegment == "sphere"){
+            Sphere* sphere = new Sphere();
+
+            sceneFile >> sphere->center.x >> sphere->center.y >> sphere->center.z;
+            sceneFile >> sphere->length;
+
+            sceneFile >> sphere->color[0] >> sphere->color[1] >> sphere->color[2];
+            sceneFile >> sphere->coeffs[0] >> sphere->coeffs[1] >> sphere->coeffs[2] >> sphere->coeffs[3];
+            sceneFile >> sphere->shine;
+
+            objectArray.push_back(sphere);
+
+        }
+        else if(lineSegment == "triangle"){
+
+            Triangle* triangle = new Triangle();
+
+            sceneFile >> triangle->vertices[0].x >> triangle->vertices[0].y >> triangle->vertices[0].z;
+            sceneFile >> triangle->vertices[1].x >> triangle->vertices[1].y >> triangle->vertices[1].z;
+            sceneFile >> triangle->vertices[2].x >> triangle->vertices[2].y >> triangle->vertices[2].z;
+
+            sceneFile >> triangle->color[0] >> triangle->color[1] >> triangle->color[2];
+            sceneFile >> triangle->coeffs[0] >> triangle->coeffs[1] >> triangle->coeffs[2] >> triangle->coeffs[3];
+            sceneFile >> triangle->shine;
+
+            objectArray.push_back(triangle);
+
+        }
+        else if(lineSegment == "general"){
+            GeneralObject* object = new GeneralObject();
+
+            for(int i=0; i<10; i++){
+                sceneFile >> object->eqnCoeffs[i];
+            }
+
+            sceneFile >> object->cubeReferencePoint.x >> object->cubeReferencePoint.y >> object->cubeReferencePoint.z;
+            sceneFile >> object->length >> object->width >> object->height;
+
+            sceneFile >> object->color[0] >> object->color[1] >> object->color[2];
+            sceneFile >> object->coeffs[0] >> object->coeffs[1] >> object->coeffs[2] >> object->coeffs[3];
+            sceneFile >> object->shine;
+
+            objectArray.push_back(object);
+        }
+
+        else{
+
+        }
+    }
+
+    sceneFile >> numberOfLightSource;
+
+    for(int i=0; i< numberOfLightSource; i++){
+        Light light;
+
+        sceneFile >> light.position.x >> light.position.y >> light.position.z;
+        sceneFile >> light.color[0] >> light.color[1] >> light.color[2];
+
+        lightSourceArray.push_back(light);
+    }
+
+    for(int i=0; i<8; i++){
+        objectArray.at(i)->print();
+    }
+
+    for(int i=0; i<4; i++){
+        lightSourceArray.at(i).print();
+    }
+
+}
+
 int main(int argc, char **argv){
 
-
+/*
 	glutInit(&argc,argv);
 	glutInitWindowSize(500, 500);
 	glutInitWindowPosition(0, 0);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);	//Depth, Double buffer, RGB color
 
-	glutCreateWindow("Gun");
+	glutCreateWindow("Vallagena");
+
 
 	init();
 
@@ -512,6 +598,8 @@ int main(int argc, char **argv){
 	glutMouseFunc(mouseListener);
 
 	glutMainLoop();		//The main loop of OpenGL
+*/
+    loadData("F:/4-1/Graphics Sessionals/Offline-03/CSE410-offline03/inputs/scene.txt");
 
 	return 0;
 }
