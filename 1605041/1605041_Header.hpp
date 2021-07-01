@@ -161,3 +161,17 @@ class GeneralObject: public Object {
         cout << "Shininess: " << shine << endl << endl;
     }
 };
+
+class Floor: public Object {
+ public:
+    Floor() {}
+
+    void print(){
+        cout << "Floor: \n";
+        cout << "Reference Point(x,y,z): (" << cubeReferencePoint.x << "," << cubeReferencePoint.y << "," << cubeReferencePoint.z << ")" << endl;
+        cout << "Length: " << length << endl;
+        cout << "Width: " << width << endl << endl;
+    }
+};
+
+

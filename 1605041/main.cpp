@@ -17,6 +17,8 @@ double angle;
 double m, theta;
 
 int levelOfRecursion, imageDimension, numberOfObjects, numberOfLightSource;
+int floorWidth = 1000, tileWidth = 20;
+
 vector<Object*> objectArray;
 vector<Light> lightSourceArray;
 
@@ -505,7 +507,7 @@ void loadData(string sceneFilePath){
     for(int i=0; i<numberOfObjects; i++){
         sceneFile >> lineSegment;
         if(lineSegment == "sphere"){
-            Sphere* sphere = new Sphere();
+            Object* sphere = new Sphere();
 
             sceneFile >> sphere->center.x >> sphere->center.y >> sphere->center.z;
             sceneFile >> sphere->length;
@@ -519,7 +521,7 @@ void loadData(string sceneFilePath){
         }
         else if(lineSegment == "triangle"){
 
-            Triangle* triangle = new Triangle();
+            Object* triangle = new Triangle();
 
             sceneFile >> triangle->vertices[0].x >> triangle->vertices[0].y >> triangle->vertices[0].z;
             sceneFile >> triangle->vertices[1].x >> triangle->vertices[1].y >> triangle->vertices[1].z;
@@ -533,7 +535,7 @@ void loadData(string sceneFilePath){
 
         }
         else if(lineSegment == "general"){
-            GeneralObject* object = new GeneralObject();
+            Object* object = new GeneralObject();
 
             for(int i=0; i<10; i++){
                 sceneFile >> object->eqnCoeffs[i];
@@ -565,14 +567,25 @@ void loadData(string sceneFilePath){
         lightSourceArray.push_back(light);
     }
 
-    for(int i=0; i<8; i++){
+    Object* floor = new Floor();
+
+    floor->cubeReferencePoint.x = -floorWidth/2;
+    floor->cubeReferencePoint.y = -floorWidth/2;
+    floor->cubeReferencePoint.z = 0;
+
+    floor->width = floorWidth;
+    floor->length = tileWidth;
+
+    objectArray.push_back(floor);
+
+
+    for(int i=0; i<9; i++){
         objectArray.at(i)->print();
     }
 
     for(int i=0; i<4; i++){
         lightSourceArray.at(i).print();
     }
-
 }
 
 int main(int argc, char **argv){
