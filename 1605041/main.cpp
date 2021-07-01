@@ -1,8 +1,5 @@
-#include <windows.h>
-#include <GL/glut.h>
 #include "1605041_Header.hpp"
 
-#define pi (2*acos(0.0))
 #define MAX_FULL_ROTATION 90
 #define MAX_PARTIAL_ROTATION 45
 
@@ -103,7 +100,6 @@ void drawAxes()
 	}
 }
 
-
 void drawGrid()
 {
 	int i;
@@ -127,166 +123,13 @@ void drawGrid()
 		}glEnd();
 	}
 }
-/*
-void drawSquare(double a)
-{
-	glBegin(GL_QUADS);{
-		glVertex3f(0,a,a);
-		glVertex3f(0,a,-a);
-		glVertex3f(0,-a,-a);
-		glVertex3f(0,-a,a);
-	}glEnd();
-}
 
-
-void drawCircle(double radius,int segments)
-{
-    int i;
-    struct point points[100];
-    glColor3f(0.7,0.7,0.7);
-    //generate points
-    for(i=0;i<=segments;i++)
-    {
-        points[i].x=radius*cos(((double)i/(double)segments)*2*pi);
-        points[i].y=radius*sin(((double)i/(double)segments)*2*pi);
-    }
-    //draw segments using generated points
-    for(i=0;i<segments;i++)
-    {
-        glBegin(GL_LINES);
-        {
-			glVertex3f(points[i].x,points[i].y,0);
-			glVertex3f(points[i+1].x,points[i+1].y,0);
-        }
-        glEnd();
-    }
-}
-
-void drawCone(double radius,double height,int segments)
-{
-    int i;
-    double shade;
-    struct point points[100];
-    //generate points
-    for(i=0;i<=segments;i++)
-    {
-        points[i].x=radius*cos(((double)i/(double)segments)*2*pi);
-        points[i].y=radius*sin(((double)i/(double)segments)*2*pi);
-    }
-    //draw triangles using generated points
-    for(i=0;i<segments/2;i++)
-    {
-        //create shading effect
-        if(i<segments/2)shade=2*(double)i/(double)segments;
-        else shade=2*(1.0-(double)i/(double)segments);
-        glColor3f(shade,shade,shade);
-
-        glBegin(GL_TRIANGLES);
-        {
-            glVertex3f(0,0,height);
-            glColor3f(1,0,0);
-			glVertex3f(points[i].x,points[i].y,0);
-			glColor3f(0,0,0);
-			glVertex3f(points[i+1].x,points[i+1].y,0);
-        }
-        glEnd();
-    }
-}
-
-
-void drawSphere(double radius,int slices,int stacks, int upper, int lower)
-{
-	struct point points[100][100];
-	int i,j;
-	double h,r;
-	//generate points
-	for(i=0;i<=stacks;i++)
-	{
-		h=radius*cos(((double)i/(double)stacks)*(pi/2));
-		r=radius*sin(((double)i/(double)stacks)*(pi/2));
-		for(j=0;j<=slices;j++)
-		{
-			points[i][j].z=r*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].x=h;
-		}
-	}
-
-	int c = 0;
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-		for(j=0;j<slices;j++)
-		{
-		    c = (c==0)?1:0;
-            glColor3f(c,c,c);
-			glBegin(GL_QUADS);{
-			    //upper hemisphere
-				if(upper!=0)
-                {
-                    glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-                    glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-                    glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-                    glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-                }
-                //lower hemisphere
-                if(lower!=0)
-                {
-                    glVertex3f(-points[i][j].x,points[i][j].y,points[i][j].z);
-                    glVertex3f(-points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-                    glVertex3f(-points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-                    glVertex3f(-points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-                }
-			}glEnd();
-		}
-	}
-}
-
-void drawCylinder(double radius,double height,int slices,int stacks)
-{
-	struct point points[100][100];
-	int i,j;
-	double h;
-	//generate points
-	for(i=0;i<=stacks;i++)
-	{
-		h=i*height/stacks;
-		for(j=0;j<=slices;j++)
-		{
-			points[i][j].z=radius*cos(((double)j/(double)slices)*2*pi);
-			points[i][j].y=radius*sin(((double)j/(double)slices)*2*pi);
-			points[i][j].x=h;
-		}
-	}
-
-	int c = 0;
-	//draw quads using generated points
-	for(i=0;i<stacks;i++)
-	{
-		for(j=0;j<slices;j++)
-		{
-		    c = (c==0)?1:0;
-            glColor3f(c,c,c);
-			glBegin(GL_QUADS);{
-			    //upper hemisphere
-                glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
-                glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-                glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-                glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-
-                //lower hemisphere
-                glVertex3f(-points[i][j].x,points[i][j].y,points[i][j].z);
-                glVertex3f(-points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
-                glVertex3f(-points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
-                glVertex3f(-points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
-			}glEnd();
-		}
-	}
-}
-*/
 
 void drawSS()
 {
+    for(int i=0;i<9;i++){
+        objectArray.at(i)->draw();
+    }
 }
 
 void keyboardListener(unsigned char key, int x,int y){
@@ -470,7 +313,7 @@ void init(){
 	pos.y = 100;
 	pos.z = 50;
 
-	drawgrid=1;
+	drawgrid=0;
 	drawaxes=1;
 	cameraHeight=150.0;
 	cameraAngle=1.0;
@@ -590,7 +433,7 @@ void loadData(string sceneFilePath){
 
 int main(int argc, char **argv){
 
-/*
+
 	glutInit(&argc,argv);
 	glutInitWindowSize(500, 500);
 	glutInitWindowPosition(0, 0);
@@ -600,6 +443,7 @@ int main(int argc, char **argv){
 
 
 	init();
+	loadData("F:/4-1/Graphics Sessionals/Offline-03/CSE410-offline03/inputs/scene.txt");
 
 	glEnable(GL_DEPTH_TEST);	//enable Depth Testing
 
@@ -611,8 +455,8 @@ int main(int argc, char **argv){
 	glutMouseFunc(mouseListener);
 
 	glutMainLoop();		//The main loop of OpenGL
-*/
-    loadData("F:/4-1/Graphics Sessionals/Offline-03/CSE410-offline03/inputs/scene.txt");
+
+
 
 	return 0;
 }

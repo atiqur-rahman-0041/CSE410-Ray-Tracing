@@ -1,4 +1,8 @@
 #include<bits/stdc++.h>
+#include <windows.h>
+#include <GL/glut.h>
+
+#define pi (2*acos(0.0))
 
 using namespace std;
 
@@ -122,6 +126,54 @@ class Sphere: public Object {
         cout << "Coeffs(a,d,s,r): (" << coeffs[0] << "," << coeffs[1] << "," << coeffs[2] << "," << coeffs[3] << ")" << endl;
         cout << "Shininess: " << shine << endl << endl;
     }
+
+    void draw(){
+        glPushMatrix();
+        glTranslatef(center.x, center.y, center.z);
+
+        int slices=48,stacks=20;
+        int radius = length;
+
+        Vector points[100][100];
+        int i,j;
+        double h,r;
+
+        //generate points
+        for(i=0;i<=stacks;i++)
+        {
+            h=radius*sin(((double)i/(double)stacks)*(pi/2));
+            r=radius*cos(((double)i/(double)stacks)*(pi/2));
+            for(j=0;j<=slices;j++)
+            {
+                points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
+                points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
+                points[i][j].z=h;
+            }
+        }
+
+        //draw quads using generated points
+        glColor3f(color[0],color[1],color[2]);
+        for(i=0;i<stacks;i++)
+        {
+            for(j=0;j<slices;j++)
+            {
+                glBegin(GL_QUADS);{
+                    //upper hemisphere
+                    glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
+                    glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
+                    glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
+                    glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
+                    //lower hemisphere
+                    glVertex3f(points[i][j].x,points[i][j].y,-points[i][j].z);
+                    glVertex3f(points[i][j+1].x,points[i][j+1].y,-points[i][j+1].z);
+                    glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,-points[i+1][j+1].z);
+                    glVertex3f(points[i+1][j].x,points[i+1][j].y,-points[i+1][j].z);
+                }glEnd();
+            }
+        }
+        glPopMatrix();
+    }
+
 };
 
 class Triangle: public Object {
@@ -137,6 +189,17 @@ class Triangle: public Object {
         cout << "Color(r,g,b): (" << color[0] << "," << color[1] << "," << color[2] << ")" << endl;
         cout << "Coeffs(a,d,s,r): (" << coeffs[0] << "," << coeffs[1] << "," << coeffs[2] << "," << coeffs[3] << ")" << endl;
         cout << "Shininess: " << shine << endl << endl;
+    }
+
+    void draw(){
+        glPushMatrix();
+        glColor3f(color[0], color[1], color[2]);
+        glBegin(GL_TRIANGLES);{
+            glVertex3f(vertices[0].x, vertices[0].y, vertices[0].z);
+            glVertex3f(vertices[1].x, vertices[1].y, vertices[1].z);
+            glVertex3f(vertices[2].x, vertices[2].y, vertices[2].z);
+        }glEnd();
+        glPopMatrix();
     }
 };
 
@@ -160,6 +223,8 @@ class GeneralObject: public Object {
         cout << "Coeffs(a,d,s,r): (" << coeffs[0] << "," << coeffs[1] << "," << coeffs[2] << "," << coeffs[3] << ")" << endl;
         cout << "Shininess: " << shine << endl << endl;
     }
+
+    void draw() {}
 };
 
 class Floor: public Object {
@@ -171,6 +236,39 @@ class Floor: public Object {
         cout << "Reference Point(x,y,z): (" << cubeReferencePoint.x << "," << cubeReferencePoint.y << "," << cubeReferencePoint.z << ")" << endl;
         cout << "Length: " << length << endl;
         cout << "Width: " << width << endl << endl;
+    }
+
+    void draw(){
+        glPushMatrix();
+
+        int k = cubeReferencePoint.z;
+        double rgb = 1;
+
+        for(int i=cubeReferencePoint.x; i<=width/2-length; i+=length){
+            rgb = 1 - rgb;
+            for(int j=cubeReferencePoint.y; j<=width/2-length; j+=length){
+                rgb = 1 - rgb;
+                glColor3f(rgb,rgb,rgb);
+                glBegin(GL_QUADS);{
+                    glVertex3f(i, j, k);
+                    glVertex3f(i+length, j, k);
+                    glVertex3f(i+length, j+length, k);
+                    glVertex3f(i, j+length, k);
+                }glEnd();
+            }
+        }
+
+
+
+        /*
+        glBegin(GL_QUADS);{
+            glVertex3f(cubeReferencePoint.x, cubeReferencePoint.y, cubeReferencePoint.z);
+            glVertex3f(cubeReferencePoint.x+width, cubeReferencePoint.y, cubeReferencePoint.z);
+            glVertex3f(cubeReferencePoint.x+width, cubeReferencePoint.y+width, cubeReferencePoint.z);
+            glVertex3f(cubeReferencePoint.x, cubeReferencePoint.y+width, cubeReferencePoint.z);
+        }glEnd();
+        */
+        glPopMatrix();
     }
 };
 
