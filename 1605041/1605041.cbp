@@ -43,6 +43,7 @@
 			<Add directory="C:/Program Files (x86)/CodeBlocks/MinGW/lib" />
 		</Linker>
 		<Unit filename="1605041_Header.hpp" />
+		<Unit filename="bitmap_image.hpp" />
 		<Unit filename="main.cpp" />
 		<Extensions>
 			<code_completion />

@@ -150,11 +150,12 @@ void capture(){
     topLeft.z = topLeft.z + r.z * (0.5 * du) - u.z * (0.5 * dv);
 
     int nearest;
-    double t = 100000, tMin;
+    double t, tMin;
 
     for(int i=0; i<imageWidth; i++){
         for(int j=0; j<imageHeight; j++){
-
+            t = 100000;
+            nearest=-1;
             Vector curPixel;
 
             curPixel.x = topLeft.x + r.x * j * du - u.x * i * dv;
@@ -163,17 +164,17 @@ void capture(){
 
             Ray ray(pos, curPixel.subtract(pos));
             double* color = new double[3];
-            color[0] = 0;
-            color[1] = 0;
-            color[2] = 0;
-            /*for(int k=0; k<objectArray.size(); k++){
-                double tempT = objectArray.at(k)->intersect(ray, color, 0);
+            for(int k=0; k<9; k++){
+                double tempT = objectArray.at(k)->intersect(ray, color, 1);
                 if(t>tempT){
                     t = tempT;
                     nearest = k;
                 }
-            }*/
-            tMin = objectArray.at(8)->intersect(ray, color, 1);
+            }
+            color[0] = 0;
+            color[1] = 0;
+            color[2] = 0;
+            tMin = objectArray.at(nearest)->intersect(ray, color, 1);
             //cout << tMin << color[0] << color[1] << color[2] << endl;
             if(tMin>nearDist)
                 image.set_pixel(j,i,color[0], color[1], color[2]);
@@ -486,14 +487,13 @@ void loadData(string sceneFilePath){
     objectArray.push_back(floor);
 
 
-    /*for(int i=0; i<9; i++){
+    for(int i=0; i<9; i++){
         objectArray.at(i)->print();
     }
 
     for(int i=0; i<4; i++){
         lightSourceArray.at(i).print();
-    }*/
-    objectArray.at(3)->print();
+    }
 }
 
 int main(int argc, char **argv){

@@ -188,7 +188,43 @@ class Sphere: public Object {
     }
 
     double intersect(Ray ray, double color[3], int level){
-        return 10000;
+
+        Vector oc = ray.start.subtract(center);
+        double a = dotProduct(ray.dir,ray.dir);
+        double b = 2 * dotProduct(ray.dir, oc);
+        double c = dotProduct(oc,oc) - length*length;
+        double minPosT = 10000;
+        double det = b*b - 4*a*c;
+
+        if(det >=0){
+            double d = sqrt(det);
+            double t1 = (-b+d)/(2*a);
+            double t2 = (-b-d)/(2*a);
+
+            if(t1>0 || t2>0){
+                if(t1 <= 0){
+                    minPosT = t2;
+                }
+                else if(t2 <= 0){
+                    minPosT = t1;
+                }
+                else{
+                    minPosT = (t1<t2)?t1:t2;
+                }
+            }
+            else{
+                return minPosT;
+            }
+        }
+        else{
+            return minPosT;
+        }
+
+        color[0] = this->color[0]*255;
+        color[1] = this->color[1]*255;
+        color[2] = this->color[2]*255;
+
+        return minPosT;
     }
 
     void draw(){
@@ -274,16 +310,23 @@ class Triangle: public Object {
                              {vertices[0].y - vertices[1].y, vertices[0].y - vertices[2].y, vertices[0].y - ray.start.y},
                              {vertices[0].z - vertices[1].z, vertices[0].z - vertices[2].z, vertices[0].z - ray.start.z}};
 
+        double t = 10000;
         double detA = determinant(matA);
-        double beta = determinant(matBeta)/detA;
-        double gamma = determinant(matGamma)/detA;
-        double t = determinant(matT)/detA;
+        if(detA != 0){
+            double beta = determinant(matBeta)/detA;
+            double gamma = determinant(matGamma)/detA;
+            t = determinant(matT)/detA;
 
-        if((beta+gamma < 1)&(beta > 0)&(gamma > 0)&(t> nearDist)){
-            color[0] = this->color[0]*255;
-            color[1] = this->color[1]*255;
-            color[2] = this->color[2]*255;
+            if((beta+gamma < 1)&(beta > 0)&(gamma > 0)&(t> nearDist)){
+                color[0] = this->color[0]*255;
+                color[1] = this->color[1]*255;
+                color[2] = this->color[2]*255;
+            }
+            else{
+                t = 10000;
+            }
         }
+
         return t;
     }
 
@@ -321,7 +364,99 @@ class GeneralObject: public Object {
     }
 
     double intersect(Ray ray, double color[3], int level){
-        return 10000;
+        double a = eqnCoeffs[0];
+        double b = eqnCoeffs[1];
+        double c = eqnCoeffs[2];
+        double d = eqnCoeffs[3];
+        double e = eqnCoeffs[4];
+        double f = eqnCoeffs[5];
+        double g = eqnCoeffs[6];
+        double h = eqnCoeffs[7];
+        double i = eqnCoeffs[8];
+        double j = eqnCoeffs[9];
+
+        double xd = ray.dir.x;
+        double yd = ray.dir.y;
+        double zd = ray.dir.z;
+
+        double xo = ray.start.x;
+        double yo = ray.start.y;
+        double zo = ray.start.z;
+
+        double aq = a*xd*xd + b*yd*yd + c*zd*zd + d*xd*yd + e*xd*zd + f*yd*zd;
+        double bq = 2*a*xo*xd + 2*b*yo*yd + 2*c*zo*zd + d*(xo*yd + yo*xd) + e*(xo*zd + zo*xd) + f*(yo*zd + yd*zo) + g*xd + h*yd + i*zd;
+        double cq = a*xo*xo + b*yo*yo + c*zo*zo + d*xo*yo + e*xo*zo + f*yo*zo + g*xo + h*yo + i*zo + j;
+
+        double det = bq*bq - 4*aq*cq;
+        double minPosT = 10000;
+        double maxPosT = -10000;
+
+        if(aq == 0){
+            minPosT = (-1)*(cq/bq);
+        }
+        else{
+            if(det >= 0){
+                double t1 =( - bq - sqrt(det))/ (2*aq);
+                /*if(t1 > 0){
+                    minPosT = t1;
+                }
+                else{*/
+                double t2 =( - bq + sqrt(det))/ (2*aq);
+                minPosT = (t1<t2)?t1:t2;
+                //}
+                /*double t2 =( - bq + sqrt(det))/ (2*aq);
+                if(t1>0 || t2>0){
+                    if(t1 <= 0){
+                        minPosT = t2;
+                    }
+                    else if(t2 <= 0){
+                        minPosT = t1;
+                    }
+                    else{
+                        minPosT = (t1<t2)?t1:t2;
+                    }
+                }
+                else{
+                    return minPosT;
+                }*/
+            }
+            else{
+                return minPosT;
+            }
+        }
+
+        Vector intersection_point = ray.start.add(ray.dir.scalarMultiply(minPosT));
+        bool insideCube = true;
+
+        if(height != 0){
+            if(abs(intersection_point.z) < abs(cubeReferencePoint.z) || abs(intersection_point.z) > abs(cubeReferencePoint.z) + height){
+                insideCube = false;
+                minPosT = 10000;
+            }
+        }
+
+        if(length != 0){
+            if(abs(intersection_point.x) < abs(cubeReferencePoint.x) || abs(intersection_point.x) > abs(cubeReferencePoint.x) + length){
+                insideCube = false;
+                minPosT = 10000;
+            }
+        }
+
+        if(width != 0){
+            if(abs(intersection_point.y) < abs(cubeReferencePoint.y) || abs(intersection_point.y) > abs(cubeReferencePoint.y) + width){
+                insideCube = false;
+                minPosT = 10000;
+            }
+        }
+
+        if(insideCube)
+        {
+            color[0] = this->color[0]*255;
+            color[1] = this->color[1]*255;
+            color[2] = this->color[2]*255;
+        }
+
+        return minPosT;
     }
 
     void draw() {}
@@ -341,21 +476,27 @@ class Floor: public Object {
     double intersect(Ray ray, double* color, int level){
         double d = 0;
         Vector n(0,0,1);
-        double t = -1 * (d + dotProduct(n,ray.start)) / dotProduct(n,ray.dir);
+        double t = 10000;
+        if(dotProduct(n,ray.dir) != 0){
+            t = -1 * (d + dotProduct(n,ray.start)) / dotProduct(n,ray.dir);
 
-        Vector intersection_point = ray.start.add(ray.dir.scalarMultiply(t));
+            Vector intersection_point = ray.start.add(ray.dir.scalarMultiply(t));
 
-        if((level > 0) && (intersection_point.x >= -500 && intersection_point.x <= 500) && (intersection_point.y >= -500 && intersection_point.y <= 500)){
-            int pixelX = (int)((cubeReferencePoint.x -intersection_point.x)/length);
-            int pixelY = (int)((cubeReferencePoint.y -intersection_point.y)/length);
-            if((pixelX + pixelY)%2==0 && t>nearDist){
-                color[0] = 255;
-                color[1] = 255;
-                color[2] = 255;
-            } else{
-                color[0] = 0;
-                color[1] = 0;
-                color[2] = 0;
+            if((intersection_point.x >= -500 && intersection_point.x <= 500) && (intersection_point.y >= -500 && intersection_point.y <= 500)){
+                int pixelX = (int)((cubeReferencePoint.x -intersection_point.x)/length);
+                int pixelY = (int)((cubeReferencePoint.y -intersection_point.y)/length);
+                if((pixelX + pixelY)%2==0 && t>nearDist){
+                    color[0] = 255;
+                    color[1] = 255;
+                    color[2] = 255;
+                } else{
+                    color[0] = 0;
+                    color[1] = 0;
+                    color[2] = 0;
+                }
+            }
+            else{
+                t = 10000;
             }
         }
         return t;
