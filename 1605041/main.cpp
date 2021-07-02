@@ -1,4 +1,5 @@
 #include "1605041_Header.hpp"
+#include "bitmap_image.hpp"
 
 #define MAX_FULL_ROTATION 90
 #define MAX_PARTIAL_ROTATION 45
@@ -16,11 +17,12 @@ double m, theta;
 int levelOfRecursion, imageDimension, numberOfObjects, numberOfLightSource;
 int floorWidth = 1000, tileWidth = 20;
 
+bitmap_image image;
+
 vector<Object*> objectArray;
 vector<Light> lightSourceArray;
 
-Point pos;
-Vector u,r,l;
+Vector pos,u,r,l;
 
 void rotateRight(double theta)
 {
@@ -124,6 +126,65 @@ void drawGrid()
 	}
 }
 
+void capture(){
+    cout << "Capture Called\n";
+    int imageWidth = imageDimension;
+    int imageHeight = imageDimension;
+
+    image.setwidth_height(imageWidth, imageHeight, true);
+
+    double viewAngle = fovY;
+    double planeDistance = (windowHeight / 2.0) / tan((viewAngle * pi) / 360.0);
+
+    Vector topLeft;
+
+    topLeft.x = pos.x + l.x * planeDistance - r.x * (windowWidth / 2) + u.x * (windowHeight / 2);
+    topLeft.y = pos.y + l.y * planeDistance - r.y * (windowWidth / 2) + u.y * (windowHeight / 2);
+    topLeft.z = pos.z + l.z * planeDistance - r.z * (windowWidth / 2) + u.z * (windowHeight / 2);
+
+    double du = windowWidth / (imageWidth * 1.0);
+    double dv = windowHeight / (imageHeight * 1.0);
+
+    topLeft.x = topLeft.x + r.x * (0.5 * du) - u.x * (0.5 * dv);
+    topLeft.y = topLeft.y + r.y * (0.5 * du) - u.y * (0.5 * dv);
+    topLeft.z = topLeft.z + r.z * (0.5 * du) - u.z * (0.5 * dv);
+
+    int nearest;
+    double t = 100000, tMin;
+
+    for(int i=0; i<imageWidth; i++){
+        for(int j=0; j<imageHeight; j++){
+
+            Vector curPixel;
+
+            curPixel.x = topLeft.x + r.x * j * du - u.x * i * dv;
+            curPixel.y = topLeft.y + r.y * j * du - u.y * i * dv;
+            curPixel.z = topLeft.z + r.z * j * du - u.z * i * dv;
+
+            Ray ray(pos, curPixel.subtract(pos));
+            double* color = new double[3];
+            color[0] = 0;
+            color[1] = 0;
+            color[2] = 0;
+            /*for(int k=0; k<objectArray.size(); k++){
+                double tempT = objectArray.at(k)->intersect(ray, color, 0);
+                if(t>tempT){
+                    t = tempT;
+                    nearest = k;
+                }
+            }*/
+            tMin = objectArray.at(8)->intersect(ray, color, 1);
+            //cout << tMin << color[0] << color[1] << color[2] << endl;
+            if(tMin>nearDist)
+                image.set_pixel(j,i,color[0], color[1], color[2]);
+            //break;
+        }
+        //break;
+    }
+
+    cout << "Saving Image\n";
+    image.save_image("F:/4-1/Graphics Sessionals/Offline-03/CSE410-offline03/outputs/out.bmp");
+}
 
 void drawSS()
 {
@@ -171,6 +232,9 @@ void keyboardListener(unsigned char key, int x,int y){
         case '6':
             tiltAntiClockwise(theta);
             break;
+
+        case '0':
+            capture();
 
 		default:
 			break;
@@ -332,7 +396,7 @@ void init(){
 	glLoadIdentity();
 
 	//give PERSPECTIVE parameters
-	gluPerspective(80,	1,	1,	1000.0);
+	gluPerspective(fovY, aspectRatio, nearDist, farDist);
 	//field of view in the Y (vertically)
 	//aspect ratio that determines the field of view in the X direction (horizontally)
 	//near distance
@@ -422,20 +486,21 @@ void loadData(string sceneFilePath){
     objectArray.push_back(floor);
 
 
-    for(int i=0; i<9; i++){
+    /*for(int i=0; i<9; i++){
         objectArray.at(i)->print();
     }
 
     for(int i=0; i<4; i++){
         lightSourceArray.at(i).print();
-    }
+    }*/
+    objectArray.at(3)->print();
 }
 
 int main(int argc, char **argv){
 
 
 	glutInit(&argc,argv);
-	glutInitWindowSize(500, 500);
+	glutInitWindowSize(windowHeight, windowWidth);
 	glutInitWindowPosition(0, 0);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGB);	//Depth, Double buffer, RGB color
 

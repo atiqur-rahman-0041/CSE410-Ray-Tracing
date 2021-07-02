@@ -232,11 +232,22 @@
 1341006774 c:\program files (x86)\codeblocks\mingw\include\math.h
 	<_mingw.h>
 
-1625173422 source:f:\4-1\graphics sessionals\offline-03\cse410-offline03\1605041\main.cpp
+1625242014 source:f:\4-1\graphics sessionals\offline-03\cse410-offline03\1605041\main.cpp
 	"1605041_Header.hpp"
+	"bitmap_image.hpp"
 
-1625175437 f:\4-1\graphics sessionals\offline-03\cse410-offline03\1605041\1605041_header.hpp
+1625242192 f:\4-1\graphics sessionals\offline-03\cse410-offline03\1605041\1605041_header.hpp
 	<bits/stdc++.h>
 	<windows.h>
 	<GL/glut.h>
+
+1622041928 f:\4-1\graphics sessionals\offline-03\cse410-offline03\1605041\bitmap_image.hpp
+	<algorithm>
+	<cmath>
+	<cstdlib>
+	<fstream>
+	<iostream>
+	<iterator>
+	<limits>
+	<string>
 

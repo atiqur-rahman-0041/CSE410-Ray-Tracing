@@ -6,6 +6,9 @@
 
 using namespace std;
 
+int windowHeight = 500, windowWidth = 500, fovY = 80, aspectRatio = 1, nearDist = 1, farDist = 1000;
+
+
 class Point {
 
  public:
@@ -43,6 +46,30 @@ class Vector {
         this->z = z;
     }
 
+    Vector subtract(Vector a){
+        Vector temp;
+        temp.x = x - a.x;
+        temp.y = y - a.y;
+        temp.z = z - a.z;
+        return temp;
+    }
+
+    Vector add(Vector a){
+        Vector temp;
+        temp.x = x + a.x;
+        temp.y = y + a.y;
+        temp.z = z + a.z;
+        return temp;
+    }
+
+    Vector scalarMultiply(double a){
+        Vector temp;
+        temp.x = x*a;
+        temp.y = y*a;
+        temp.z = z*a;
+        return temp;
+    }
+
      void print(){
         cout << "Vector(x,y,z): (" << this->x << "," << this->y << "," << this->z << ")" << endl;
     }
@@ -76,6 +103,21 @@ Vector unitVector(Vector a)
     return unit_vector;
 }
 
+double determinant(double a[3][3]){
+
+    double a1 = a[0][0];
+    double a2 = a[1][0];
+    double a3 = a[2][0];
+    double b1 = a[0][1];
+    double b2 = a[1][1];
+    double b3 = a[2][1];
+    double c1 = a[0][2];
+    double c2 = a[1][2];
+    double c3 = a[2][2];
+
+    return (a1*b2*c3 + b1*c2*a3 + c1*a2*b3) - (a3*b2*c1 + b3*c2*a1 + c3*a2*b1);
+}
+
 class Light {
  public:
      Vector position;
@@ -91,6 +133,20 @@ class Light {
         cout << "Color(r,g,b): (" << color[0] << "," << color[1] << "," << color[2] << ")" << endl << endl;
      }
 };
+
+class Ray {
+ public:
+    Vector start;
+    Vector dir;
+
+    Ray() {}
+
+    Ray(Vector s, Vector d){
+        this->start = s;
+        this->dir = unitVector(d);
+    }
+};
+
 
 class Object {
  public:
@@ -109,6 +165,10 @@ class Object {
 
      virtual void draw() {}
 
+     virtual double intersect(Ray ray, double color[3], int level){
+         return -1;
+     }
+
      virtual void print(){
          cout << "why I am here -.- " << endl;
      }
@@ -125,6 +185,10 @@ class Sphere: public Object {
         cout << "Color(r,g,b): (" << color[0] << "," << color[1] << "," << color[2] << ")" << endl;
         cout << "Coeffs(a,d,s,r): (" << coeffs[0] << "," << coeffs[1] << "," << coeffs[2] << "," << coeffs[3] << ")" << endl;
         cout << "Shininess: " << shine << endl << endl;
+    }
+
+    double intersect(Ray ray, double color[3], int level){
+        return 10000;
     }
 
     void draw(){
@@ -191,6 +255,38 @@ class Triangle: public Object {
         cout << "Shininess: " << shine << endl << endl;
     }
 
+    double intersect(Ray ray, double color[3], int level){
+
+        double matA[3][3] ={{vertices[0].x - vertices[1].x, vertices[0].x - vertices[2].x, ray.dir.x},
+                            {vertices[0].y - vertices[1].y, vertices[0].y - vertices[2].y, ray.dir.y},
+                            {vertices[0].z - vertices[1].z, vertices[0].z - vertices[2].z, ray.dir.z}};
+
+        double matBeta[3][3] = {{vertices[0].x - ray.start.x, vertices[0].x - vertices[2].x, ray.dir.x},
+                                {vertices[0].y - ray.start.y, vertices[0].y - vertices[2].y, ray.dir.y},
+                                {vertices[0].z - ray.start.z, vertices[0].z - vertices[2].z, ray.dir.z}};
+
+
+        double matGamma[3][3] = {{vertices[0].x - vertices[1].x, vertices[0].x - ray.start.x, ray.dir.x},
+                                {vertices[0].y - vertices[1].y, vertices[0].y - ray.start.y, ray.dir.y},
+                                {vertices[0].z - vertices[1].z, vertices[0].z - ray.start.z, ray.dir.z}};
+
+        double matT[3][3] = {{vertices[0].x - vertices[1].x, vertices[0].x - vertices[2].x, vertices[0].x - ray.start.x},
+                             {vertices[0].y - vertices[1].y, vertices[0].y - vertices[2].y, vertices[0].y - ray.start.y},
+                             {vertices[0].z - vertices[1].z, vertices[0].z - vertices[2].z, vertices[0].z - ray.start.z}};
+
+        double detA = determinant(matA);
+        double beta = determinant(matBeta)/detA;
+        double gamma = determinant(matGamma)/detA;
+        double t = determinant(matT)/detA;
+
+        if((beta+gamma < 1)&(beta > 0)&(gamma > 0)&(t> nearDist)){
+            color[0] = this->color[0]*255;
+            color[1] = this->color[1]*255;
+            color[2] = this->color[2]*255;
+        }
+        return t;
+    }
+
     void draw(){
         glPushMatrix();
         glColor3f(color[0], color[1], color[2]);
@@ -224,6 +320,10 @@ class GeneralObject: public Object {
         cout << "Shininess: " << shine << endl << endl;
     }
 
+    double intersect(Ray ray, double color[3], int level){
+        return 10000;
+    }
+
     void draw() {}
 };
 
@@ -236,6 +336,29 @@ class Floor: public Object {
         cout << "Reference Point(x,y,z): (" << cubeReferencePoint.x << "," << cubeReferencePoint.y << "," << cubeReferencePoint.z << ")" << endl;
         cout << "Length: " << length << endl;
         cout << "Width: " << width << endl << endl;
+    }
+
+    double intersect(Ray ray, double* color, int level){
+        double d = 0;
+        Vector n(0,0,1);
+        double t = -1 * (d + dotProduct(n,ray.start)) / dotProduct(n,ray.dir);
+
+        Vector intersection_point = ray.start.add(ray.dir.scalarMultiply(t));
+
+        if((level > 0) && (intersection_point.x >= -500 && intersection_point.x <= 500) && (intersection_point.y >= -500 && intersection_point.y <= 500)){
+            int pixelX = (int)((cubeReferencePoint.x -intersection_point.x)/length);
+            int pixelY = (int)((cubeReferencePoint.y -intersection_point.y)/length);
+            if((pixelX + pixelY)%2==0 && t>nearDist){
+                color[0] = 255;
+                color[1] = 255;
+                color[2] = 255;
+            } else{
+                color[0] = 0;
+                color[1] = 0;
+                color[2] = 0;
+            }
+        }
+        return t;
     }
 
     void draw(){
@@ -258,18 +381,9 @@ class Floor: public Object {
             }
         }
 
-
-
-        /*
-        glBegin(GL_QUADS);{
-            glVertex3f(cubeReferencePoint.x, cubeReferencePoint.y, cubeReferencePoint.z);
-            glVertex3f(cubeReferencePoint.x+width, cubeReferencePoint.y, cubeReferencePoint.z);
-            glVertex3f(cubeReferencePoint.x+width, cubeReferencePoint.y+width, cubeReferencePoint.z);
-            glVertex3f(cubeReferencePoint.x, cubeReferencePoint.y+width, cubeReferencePoint.z);
-        }glEnd();
-        */
         glPopMatrix();
     }
 };
+
 
 
