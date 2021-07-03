@@ -165,7 +165,7 @@ void capture(){
             Ray ray(pos, curPixel.subtract(pos));
             double* color = new double[3];
             for(int k=0; k<9; k++){
-                double tempT = objectArray.at(k)->intersect(ray, color, 1);
+                double tempT = objectArray.at(k)->intersect(ray, color, 0);
                 if(t>tempT){
                     t = tempT;
                     nearest = k;
@@ -177,7 +177,7 @@ void capture(){
             tMin = objectArray.at(nearest)->intersect(ray, color, 1);
             //cout << tMin << color[0] << color[1] << color[2] << endl;
             if(tMin>nearDist)
-                image.set_pixel(j,i,color[0], color[1], color[2]);
+                image.set_pixel(j,i,color[0]*255, color[1]*255, color[2]*255);
             //break;
         }
         //break;
