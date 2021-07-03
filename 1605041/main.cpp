@@ -142,31 +142,33 @@ void capture(){
     topLeft.y = pos.y + l.y * planeDistance - r.y * (windowWidth / 2) + u.y * (windowHeight / 2);
     topLeft.z = pos.z + l.z * planeDistance - r.z * (windowWidth / 2) + u.z * (windowHeight / 2);
 
+    topLeft.print();
     double du = windowWidth / (imageWidth * 1.0);
     double dv = windowHeight / (imageHeight * 1.0);
 
     topLeft.x = topLeft.x + r.x * (0.5 * du) - u.x * (0.5 * dv);
     topLeft.y = topLeft.y + r.y * (0.5 * du) - u.y * (0.5 * dv);
     topLeft.z = topLeft.z + r.z * (0.5 * du) - u.z * (0.5 * dv);
+    topLeft.print();
 
     int nearest;
     double t, tMin;
 
     for(int i=0; i<imageWidth; i++){
         for(int j=0; j<imageHeight; j++){
-            t = 100000;
+            t = 10000;
             nearest=-1;
             Vector curPixel;
 
-            curPixel.x = topLeft.x + r.x * j * du - u.x * i * dv;
-            curPixel.y = topLeft.y + r.y * j * du - u.y * i * dv;
-            curPixel.z = topLeft.z + r.z * j * du - u.z * i * dv;
+            curPixel.x = topLeft.x + r.x * i * du - u.x * j * dv;
+            curPixel.y = topLeft.y + r.y * i * du - u.y * j * dv;
+            curPixel.z = topLeft.z + r.z * i * du - u.z * j * dv;
 
             Ray ray(pos, curPixel.subtract(pos));
             double* color = new double[3];
-            for(int k=0; k<9; k++){
+            for(int k=0; k<objectArray.size(); k++){
                 double tempT = objectArray.at(k)->intersect(ray, color, 0);
-                if(t>tempT){
+                if(t>tempT && tempT < 5000){
                     t = tempT;
                     nearest = k;
                 }
@@ -174,10 +176,13 @@ void capture(){
             color[0] = 0;
             color[1] = 0;
             color[2] = 0;
-            tMin = objectArray.at(nearest)->intersect(ray, color, 1);
+            if(nearest >= 0){
+                tMin = objectArray.at(nearest)->intersect(ray, color, 1);
+                if(tMin>nearDist)
+                    image.set_pixel(i,j,color[0]*255, color[1]*255, color[2]*255);
+            }
             //cout << tMin << color[0] << color[1] << color[2] << endl;
-            if(tMin>nearDist)
-                image.set_pixel(j,i,color[0]*255, color[1]*255, color[2]*255);
+
             //break;
         }
         //break;
@@ -189,7 +194,7 @@ void capture(){
 
 void drawSS()
 {
-    for(int i=0;i<9;i++){
+    for(int i=0;i<objectArray.size();i++){
         objectArray.at(i)->draw();
     }
 }
@@ -487,11 +492,11 @@ void loadData(string sceneFilePath){
     objectArray.push_back(floor);
 
 
-    for(int i=0; i<9; i++){
+    for(int i=0; i<objectArray.size(); i++){
         objectArray.at(i)->print();
     }
 
-    for(int i=0; i<4; i++){
+    for(int i=0; i<lightSourceArray.size(); i++){
         lightSourceArray.at(i).print();
     }
 }

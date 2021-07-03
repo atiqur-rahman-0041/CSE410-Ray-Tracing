@@ -225,13 +225,16 @@ class Sphere: public Object {
             return minPosT;
         }
 
+
+
         /*if(level > 0){
-            color[0] = this->color[0]*255;
-            color[1] = this->color[1]*255;
-            color[2] = this->color[2]*255;
+            color[0] = this->color[0];
+            color[1] = this->color[1];
+            color[2] = this->color[2];
         }*/
 
         if(level > 0){
+
             color[0] = this->color[0]*coeffs[0];
             color[1] = this->color[1]*coeffs[0];
             color[2] = this->color[2]*coeffs[0];
@@ -276,7 +279,56 @@ class Sphere: public Object {
             color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
             color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
 
+        } else{
+            return minPosT;
         }
+
+
+
+        if(level >= levelOfRecursion){
+            return minPosT;
+        }
+        double rNearest=-1, rT=10000, rTempT, rTmin;
+
+        Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(minPosT));
+
+        Vector rNormal = unitVector(intersectionPoint.subtract(this->center));
+        double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
+        Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+
+
+        Vector recursiveReflectionDirection = unitVector(reflectedRay);
+
+
+        //Vector recursiveReflectionDirection = unitVector(ray.start.subtract(intersectionPoint));
+        Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
+
+        double* colorReflected = new double[3];
+
+        for(int k=0; k<objectArray.size(); k++){
+            rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
+            if(rT>rTempT && rTempT <10000){
+                rT = rTempT;
+                rNearest = k;
+            }
+        }
+        colorReflected[0] = 0;
+        colorReflected[1] = 0;
+        colorReflected[2] = 0;
+
+        if(rNearest >= 0){
+            rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
+            if(rTmin > 0 && rTmin <10000){
+                color[0] += colorReflected[0]*this->coeffs[3];
+                color[1] += colorReflected[1]*this->coeffs[3];
+                color[2] += colorReflected[2]*this->coeffs[3];
+            }
+        }
+
+
+
+
+
 
 
         return minPosT;
@@ -372,8 +424,13 @@ class Triangle: public Object {
             double gamma = determinant(matGamma)/detA;
             t = determinant(matT)/detA;
 
+
             if((beta+gamma < 1)&&(beta > 0)&&(gamma > 0)&&(t> nearDist)){
+                if(level == 0) return t;
                 if(level > 0){
+                    /*color[0] = this->color[0];
+                    color[1] = this->color[1];
+                    color[2] = this->color[2];*/
                     color[0] = this->color[0]*coeffs[0];
                     color[1] = this->color[1]*coeffs[0];
                     color[2] = this->color[2]*coeffs[0];
@@ -381,6 +438,7 @@ class Triangle: public Object {
                     // phong lighting
                     Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
                     Vector normal = unitVector(crossProduct(vertices[1].subtract(vertices[0]),vertices[2].subtract(vertices[0])));
+                    if(dotProduct(normal,ray.dir) > 0) normal = normal.scalarMultiply(-1);
 
                     for(int i=0;i<lightSourceArray.size();i++){
 
@@ -421,7 +479,47 @@ class Triangle: public Object {
 
                 }
 
+                if(level >= levelOfRecursion){
+                    return t;
+                }
+
+                double rNearest=-1, rT=10000, rTempT, rTmin;
+                Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
+                Vector rNormal = unitVector(crossProduct(vertices[1].subtract(vertices[0]),vertices[2].subtract(vertices[0])));
+
+                double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
+                Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+
+
+                Vector recursiveReflectionDirection = unitVector(reflectedRay);
+
+                //Vector recursiveReflectionDirection = unitVector(ray.start.subtract(intersectionPoint));
+                Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
+                double* colorReflected = new double[3];
+                for(int k=0; k<objectArray.size(); k++){
+                    rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
+                    if(rT>rTempT && rTempT <10000){
+                        rT = rTempT;
+                        rNearest = k;
+                    }
+                }
+                colorReflected[0] = 0;
+                colorReflected[1] = 0;
+                colorReflected[2] = 0;
+
+                if(rNearest >= 0){
+                    rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
+                        if(rTmin > 0 && rTmin <10000){
+                        color[0] += colorReflected[0]*this->coeffs[3];
+                        color[1] += colorReflected[1]*this->coeffs[3];
+                        color[2] += colorReflected[2]*this->coeffs[3];
+                    }
+                }
             }
+
+
+
+
             else{
                 t = 10000;
             }
@@ -552,7 +650,7 @@ class GeneralObject: public Object {
             minPosT = (t1<t2)?t1:t2;
         }
 
-
+        if(level == 0) return minPosT;
         /*if(level>0){
             color[0] = this->color[0]*255;
             color[1] = this->color[1]*255;
@@ -575,6 +673,8 @@ class GeneralObject: public Object {
             surfaceNormal.x = 2*a*xi + d*yi + e*zi + g;
             surfaceNormal.y = 2*b*yi + d*xi + f*zi + h;
             surfaceNormal.z = 2*c*zi + e*xi + f*yi + i;
+
+            //if(dotProduct(surfaceNormal,ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
 
             Vector normal = unitVector(surfaceNormal);
 
@@ -617,6 +717,58 @@ class GeneralObject: public Object {
 
         }
 
+        if(level >= levelOfRecursion){
+            return minPosT;
+        }
+
+        double rNearest=-1, rT=10000, rTempT, rTmin;
+
+        Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(minPosT));
+
+        double xi = intersectionPoint.x;
+        double yi = intersectionPoint.y;
+        double zi = intersectionPoint.z;
+
+        Vector surfaceNormal;
+        surfaceNormal.x = 2*a*xi + d*yi + e*zi + g;
+        surfaceNormal.y = 2*b*yi + d*xi + f*zi + h;
+        surfaceNormal.z = 2*c*zi + e*xi + f*yi + i;
+
+        //if(dotProduct(surfaceNormal,ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
+
+        Vector rNormal = unitVector(surfaceNormal);
+        double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
+        Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+
+
+        Vector recursiveReflectionDirection = unitVector(reflectedRay);
+        //Vector recursiveReflectionDirection = unitVector(ray.start.subtract(intersectionPoint));
+        Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
+        double* colorReflected = new double[3];
+        for(int k=0; k<objectArray.size(); k++){
+            rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
+            if(rT>rTempT && rTempT<10000){
+                rT = rTempT;
+                rNearest = k;
+            }
+        }
+        colorReflected[0] = 0;
+        colorReflected[1] = 0;
+        colorReflected[2] = 0;
+
+        if(rNearest >= 0){
+            rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
+            if(rTmin > 0 && rTmin <10000){
+                color[0] += colorReflected[0]*this->coeffs[3];
+                color[1] += colorReflected[1]*this->coeffs[3];
+                color[2] += colorReflected[2]*this->coeffs[3];
+            }
+        }
+
+
+
+
+
 
         return minPosT;
     }
@@ -638,21 +790,24 @@ class Floor: public Object {
     double intersect(Ray ray, double* color, int level){
         double d = 0;
         Vector n(0,0,1);
+        if(dotProduct(n,ray.dir) > 0) n = n.scalarMultiply(-1);
         double t = 10000;
         if(dotProduct(n,ray.dir) != 0){
             t = -1 * (d + dotProduct(n,ray.start)) / dotProduct(n,ray.dir);
 
             Vector intersection_point = ray.start.add(ray.dir.scalarMultiply(t));
 
-            if((intersection_point.x >= -500 && intersection_point.x <= 500) && (intersection_point.y >= -500 && intersection_point.y <= 500)){
-                int pixelX = (int)((cubeReferencePoint.x -intersection_point.x)/length);
-                int pixelY = (int)((cubeReferencePoint.y -intersection_point.y)/length);
+
+            if((intersection_point.x >= -500 && intersection_point.x <= 500) && (intersection_point.y >= -500 && intersection_point.y <= 500) && t>nearDist){
+                int pixelX = (int)((cubeReferencePoint.x - intersection_point.x)/length);
+                int pixelY = (int)((cubeReferencePoint.y - intersection_point.y)/length);
                 double colorValue = -1;
-                if((pixelX + pixelY)%2==0 && t>nearDist){
-                    /*color[0] = 255;
-                    color[1] = 255;
-                    color[2] = 255;*/
-                    colorValue = 1;
+                if(level==0) return t;
+                if((pixelX + pixelY)%2==0){
+                    /*color[0] = 1;
+                    color[1] = 1;
+                    color[2] = 1;*/
+                    colorValue = 0.7;
 
                 } else{
                     /*color[0] = 0;
@@ -709,10 +864,48 @@ class Floor: public Object {
                         }
                     }
 
-                    color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 1:color[0];
-                    color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
-                    color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
+                    color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 0.7:color[0];
+                    color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 0.7:color[1];
+                    color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 0.7:color[2];
                 }
+
+                if(level >= levelOfRecursion){
+                    return t;
+                }
+
+                double rNearest=-1, rT=10000, rTempT, rTmin;
+
+                Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
+                Vector rNormal = unitVector(n);
+                double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
+                Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+
+
+                Vector recursiveReflectionDirection = unitVector(reflectedRay);
+                Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
+                double* colorReflected = new double[3];
+
+                for(int k=0; k<objectArray.size(); k++){
+                    rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
+                    if(rT>rTempT && rTempT < 10000){
+                        rT = rTempT;
+                        rNearest = k;
+                    }
+                }
+                colorReflected[0] = 0;
+                colorReflected[1] = 0;
+                colorReflected[2] = 0;
+
+                if(rNearest >= 0){
+                    rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
+                    if(rTmin > 0 && rTmin < 10000){
+                        color[0] += colorReflected[0]*this->coeffs[3];
+                        color[1] += colorReflected[1]*this->coeffs[3];
+                        color[2] += colorReflected[2]*this->coeffs[3];
+                    }
+                }
+
+
             }
             else{
                 t = 10000;
