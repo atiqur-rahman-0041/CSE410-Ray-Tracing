@@ -389,72 +389,74 @@ class GeneralObject: public Object {
 
         double det = bq*bq - 4*aq*cq;
         double minPosT = 10000;
-        double maxPosT = -10000;
+        double t1,t2;
 
         if(aq == 0){
-            minPosT = (-1)*(cq/bq);
+            t1 = (-1)*(cq/bq);
+            t2 = t1;
         }
         else{
             if(det >= 0){
-                double t1 =( - bq - sqrt(det))/ (2*aq);
-                /*if(t1 > 0){
-                    minPosT = t1;
-                }
-                else{*/
-                double t2 =( - bq + sqrt(det))/ (2*aq);
-                minPosT = (t1<t2)?t1:t2;
-                //}
-                /*double t2 =( - bq + sqrt(det))/ (2*aq);
-                if(t1>0 || t2>0){
-                    if(t1 <= 0){
-                        minPosT = t2;
-                    }
-                    else if(t2 <= 0){
-                        minPosT = t1;
-                    }
-                    else{
-                        minPosT = (t1<t2)?t1:t2;
-                    }
-                }
-                else{
-                    return minPosT;
-                }*/
+                t1 =( - bq - sqrt(det))/ (2*aq);
+                t2 =( - bq + sqrt(det))/ (2*aq);
             }
             else{
                 return minPosT;
             }
         }
 
-        Vector intersection_point = ray.start.add(ray.dir.scalarMultiply(minPosT));
-        bool insideCube = true;
+        Vector intersectionPointT1 = ray.start.add(ray.dir.scalarMultiply(t1));
+        Vector intersectionPointT2 = ray.start.add(ray.dir.scalarMultiply(t2));
+
+        bool insideCubeT1 = true;
+        bool insideCubeT2 = true;
 
         if(height != 0){
-            if(abs(intersection_point.z) < abs(cubeReferencePoint.z) || abs(intersection_point.z) > abs(cubeReferencePoint.z) + height){
-                insideCube = false;
-                minPosT = 10000;
+            if(abs(intersectionPointT1.z) < abs(cubeReferencePoint.z) || abs(intersectionPointT1.z) > abs(cubeReferencePoint.z) + height){
+                insideCubeT1 = false;
+            }
+            if(abs(intersectionPointT2.z) < abs(cubeReferencePoint.z) || abs(intersectionPointT2.z) > abs(cubeReferencePoint.z) + height){
+                insideCubeT2 = false;
             }
         }
 
         if(length != 0){
-            if(abs(intersection_point.x) < abs(cubeReferencePoint.x) || abs(intersection_point.x) > abs(cubeReferencePoint.x) + length){
-                insideCube = false;
-                minPosT = 10000;
+            if(abs(intersectionPointT1.x) < abs(cubeReferencePoint.x) || abs(intersectionPointT1.x) > abs(cubeReferencePoint.x) + length){
+                insideCubeT1 = false;
+            }
+            if(abs(intersectionPointT2.x) < abs(cubeReferencePoint.x) || abs(intersectionPointT2.x) > abs(cubeReferencePoint.x) + length){
+                insideCubeT2 = false;
             }
         }
 
         if(width != 0){
-            if(abs(intersection_point.y) < abs(cubeReferencePoint.y) || abs(intersection_point.y) > abs(cubeReferencePoint.y) + width){
-                insideCube = false;
-                minPosT = 10000;
+            if(abs(intersectionPointT1.y) < abs(cubeReferencePoint.y) || abs(intersectionPointT1.y) > abs(cubeReferencePoint.y) + width){
+                insideCubeT1 = false;
+            }
+            if(abs(intersectionPointT2.y) < abs(cubeReferencePoint.y) || abs(intersectionPointT2.y) > abs(cubeReferencePoint.y) + width){
+                insideCubeT2 = false;
             }
         }
 
-        if(insideCube)
-        {
-            color[0] = this->color[0]*255;
-            color[1] = this->color[1]*255;
-            color[2] = this->color[2]*255;
+        if(!insideCubeT1 && !insideCubeT2){
+            minPosT = 10000;
+            return minPosT;
         }
+        else if(!insideCubeT1){
+            minPosT = t2;
+        }
+        else if(!insideCubeT2){
+            minPosT = t1;
+        }
+        else{
+            minPosT = (t1<t2)?t1:t2;
+        }
+
+
+        color[0] = this->color[0]*255;
+        color[1] = this->color[1]*255;
+        color[2] = this->color[2]*255;
+
 
         return minPosT;
     }
