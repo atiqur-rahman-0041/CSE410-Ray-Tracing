@@ -606,6 +606,7 @@ class GeneralObject: public Object {
         Vector intersectionPointT1 = ray.start.add(ray.dir.scalarMultiply(t1));
         Vector intersectionPointT2 = ray.start.add(ray.dir.scalarMultiply(t2));
 
+
         bool insideCubeT1 = true;
         bool insideCubeT2 = true;
 
@@ -647,9 +648,10 @@ class GeneralObject: public Object {
             minPosT = t1;
         }
         else{
-            minPosT = (t1<t2)?t1:t2;
+            minPosT = t1;//(t1<t2)?t1:t2;
         }
 
+        if(minPosT <= 0) return 10000;
         if(level == 0) return minPosT;
         /*if(level>0){
             color[0] = this->color[0]*255;
@@ -674,7 +676,7 @@ class GeneralObject: public Object {
             surfaceNormal.y = 2*b*yi + d*xi + f*zi + h;
             surfaceNormal.z = 2*c*zi + e*xi + f*yi + i;
 
-            //if(dotProduct(surfaceNormal,ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
+            if(dotProduct(ray.start.subtract(intersectionPoint),ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
 
             Vector normal = unitVector(surfaceNormal);
 
@@ -697,13 +699,13 @@ class GeneralObject: public Object {
                     double lambertValue = dotProduct(normal, rayTemp.dir);
                     Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
                     double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
-                    if(lambertValue < 0) continue;
+                    if(lambertValue < 0) lambertValue = 0;
 
                     color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*this->color[0];
                     color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*this->color[1];
                     color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*this->color[2];
 
-                    if(phongValue < 0) continue;
+                    if(phongValue < 0) phongValue = 0;
 
                     color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*this->color[0];
                     color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*this->color[1];
@@ -733,6 +735,8 @@ class GeneralObject: public Object {
         surfaceNormal.x = 2*a*xi + d*yi + e*zi + g;
         surfaceNormal.y = 2*b*yi + d*xi + f*zi + h;
         surfaceNormal.z = 2*c*zi + e*xi + f*yi + i;
+
+        if(dotProduct(ray.start.subtract(intersectionPoint),ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
 
         //if(dotProduct(surfaceNormal,ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
 
