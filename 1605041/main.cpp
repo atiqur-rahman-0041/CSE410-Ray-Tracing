@@ -4,8 +4,6 @@
 #define MAX_FULL_ROTATION 90
 #define MAX_PARTIAL_ROTATION 45
 
-
-
 double cameraHeight;
 double cameraAngle;
 int drawgrid;
@@ -127,7 +125,9 @@ void drawGrid()
 }
 
 void capture(){
+
     cout << "Capture Called\n";
+
     int imageWidth = imageDimension;
     int imageHeight = imageDimension;
 
@@ -142,14 +142,12 @@ void capture(){
     topLeft.y = pos.y + l.y * planeDistance - r.y * (windowWidth / 2) + u.y * (windowHeight / 2);
     topLeft.z = pos.z + l.z * planeDistance - r.z * (windowWidth / 2) + u.z * (windowHeight / 2);
 
-    topLeft.print();
     double du = windowWidth / (imageWidth * 1.0);
     double dv = windowHeight / (imageHeight * 1.0);
 
     topLeft.x = topLeft.x + r.x * (0.5 * du) - u.x * (0.5 * dv);
     topLeft.y = topLeft.y + r.y * (0.5 * du) - u.y * (0.5 * dv);
     topLeft.z = topLeft.z + r.z * (0.5 * du) - u.z * (0.5 * dv);
-    topLeft.print();
 
     int nearest;
     double t, tMin;
@@ -160,9 +158,9 @@ void capture(){
             nearest=-1;
             Vector curPixel;
 
-            curPixel.x = topLeft.x + r.x * i * du - u.x * j * dv;
-            curPixel.y = topLeft.y + r.y * i * du - u.y * j * dv;
-            curPixel.z = topLeft.z + r.z * i * du - u.z * j * dv;
+            curPixel.x = topLeft.x + r.x * j * du - u.x * i * dv;
+            curPixel.y = topLeft.y + r.y * j * du - u.y * i * dv;
+            curPixel.z = topLeft.z + r.z * j * du - u.z * i * dv;
 
             Ray ray(pos, curPixel.subtract(pos));
             double* color = new double[3];
@@ -176,26 +174,29 @@ void capture(){
             color[0] = 0;
             color[1] = 0;
             color[2] = 0;
+
             if(nearest >= 0){
                 tMin = objectArray.at(nearest)->intersect(ray, color, 1);
                 if(tMin>nearDist)
-                    image.set_pixel(i,j,color[0]*255, color[1]*255, color[2]*255);
+                    image.set_pixel(j,i,color[0]*255, color[1]*255, color[2]*255);
             }
-            //cout << tMin << color[0] << color[1] << color[2] << endl;
-
-            //break;
+            delete[] color;
         }
-        //break;
     }
 
     cout << "Saving Image\n";
     image.save_image("F:/4-1/Graphics Sessionals/Offline-03/CSE410-offline03/outputs/out.bmp");
+    image.clear();
 }
 
 void drawSS()
 {
     for(int i=0;i<objectArray.size();i++){
         objectArray.at(i)->draw();
+    }
+
+    for(int i=0;i<lightSourceArray.size();i++){
+        lightSourceArray.at(i).draw();
     }
 }
 
@@ -412,9 +413,7 @@ void init(){
 void loadData(string sceneFilePath){
     ifstream sceneFile(sceneFilePath);
     string lineSegment;
-     //while(getline(sceneFile, line_segment)){
-        //cout << line_segment << endl;
-    //}
+
     sceneFile >> levelOfRecursion >> imageDimension >> numberOfObjects;
 
     for(int i=0; i<numberOfObjects; i++){
@@ -525,8 +524,5 @@ int main(int argc, char **argv){
 	glutMouseFunc(mouseListener);
 
 	glutMainLoop();		//The main loop of OpenGL
-
-
-
 	return 0;
 }

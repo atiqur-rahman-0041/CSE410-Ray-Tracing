@@ -3,32 +3,11 @@
 #include <GL/glut.h>
 
 #define pi (2*acos(0.0))
+#define T_INF 10000 
 
 using namespace std;
 
 int windowHeight = 500, windowWidth = 500, fovY = 80, aspectRatio = 1, nearDist = 1, farDist = 1000;
-
-
-class Point {
-
- public:
-
-    double x;
-    double y;
-    double z;
-
-    Point(){}
-
-    Point(double x, double y, double z){
-        this->x = x;
-        this->y = y;
-        this->z = z;
-    }
-
-    void print(){
-        cout << "Point(x,y,z): (" << this->x << "," << this->y << "," << this->z << ")" << endl;
-    }
-};
 
 class Vector {
 
@@ -120,18 +99,64 @@ double determinant(double a[3][3]){
 
 class Light {
  public:
-     Vector position;
-     double color[3];
+    Vector position;
+    double color[3];
 
-     Light() {}
+    Light() {}
 
-     void draw() {}
+    void draw(){
+        
+        glPushMatrix();
+        glTranslatef(position.x, position.y, position.z);
 
-     void print(){
-        cout << "Light Source: \n";
-        cout << "Position(x,y,z): (" << position.x << "," << position.y << "," << position.z << ")" << endl;
-        cout << "Color(r,g,b): (" << color[0] << "," << color[1] << "," << color[2] << ")" << endl << endl;
-     }
+        int slices=48,stacks=20;
+        int radius = 1;
+
+        Vector points[100][100];
+        int i,j;
+        double h,r;
+
+        //generate points
+        for(i=0;i<=stacks;i++)
+        {
+            h=radius*sin(((double)i/(double)stacks)*(pi/2));
+            r=radius*cos(((double)i/(double)stacks)*(pi/2));
+            for(j=0;j<=slices;j++)
+            {
+                points[i][j].x=r*cos(((double)j/(double)slices)*2*pi);
+                points[i][j].y=r*sin(((double)j/(double)slices)*2*pi);
+                points[i][j].z=h;
+            }
+        }
+
+        //draw quads using generated points
+        glColor3f(color[0],color[1],color[2]);
+        for(i=0;i<stacks;i++)
+        {
+            for(j=0;j<slices;j++)
+            {
+                glBegin(GL_QUADS);{
+                    //upper hemisphere
+                    glVertex3f(points[i][j].x,points[i][j].y,points[i][j].z);
+                    glVertex3f(points[i][j+1].x,points[i][j+1].y,points[i][j+1].z);
+                    glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,points[i+1][j+1].z);
+                    glVertex3f(points[i+1][j].x,points[i+1][j].y,points[i+1][j].z);
+                    //lower hemisphere
+                    glVertex3f(points[i][j].x,points[i][j].y,-points[i][j].z);
+                    glVertex3f(points[i][j+1].x,points[i][j+1].y,-points[i][j+1].z);
+                    glVertex3f(points[i+1][j+1].x,points[i+1][j+1].y,-points[i+1][j+1].z);
+                    glVertex3f(points[i+1][j].x,points[i+1][j].y,-points[i+1][j].z);
+                }glEnd();
+            }
+        }
+        glPopMatrix();
+    }
+
+    void print(){
+    cout << "Light Source: \n";
+    cout << "Position(x,y,z): (" << position.x << "," << position.y << "," << position.z << ")" << endl;
+    cout << "Color(r,g,b): (" << color[0] << "," << color[1] << "," << color[2] << ")" << endl << endl;
+    }
 };
 
 class Ray {
@@ -198,7 +223,7 @@ class Sphere: public Object {
         double a = dotProduct(ray.dir,ray.dir);
         double b = 2 * dotProduct(ray.dir, oc);
         double c = dotProduct(oc,oc) - length*length;
-        double minPosT = 10000;
+        double minPosT = T_INF;
         double det = b*b - 4*a*c;
 
         if(det >=0){
@@ -214,7 +239,7 @@ class Sphere: public Object {
                     minPosT = t1;
                 }
                 else{
-                    minPosT = (t1<t2)?t1:t2;
+                    minPosT = t2;
                 }
             }
             else{
@@ -227,109 +252,102 @@ class Sphere: public Object {
 
 
 
-        /*if(level > 0){
-            color[0] = this->color[0];
-            color[1] = this->color[1];
-            color[2] = this->color[2];
-        }*/
+        if(level == 0) return minPosT;
+        
+        // phong lighting
+        
 
-        if(level > 0){
+        color[0] = this->color[0]*coeffs[0];
+        color[1] = this->color[1]*coeffs[0];
+        color[2] = this->color[2]*coeffs[0];
 
-            color[0] = this->color[0]*coeffs[0];
-            color[1] = this->color[1]*coeffs[0];
-            color[2] = this->color[2]*coeffs[0];
+        
+        Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(minPosT));
+        Vector normal = unitVector(intersectionPoint.subtract(this->center));
+        
+        for(int i=0;i<lightSourceArray.size();i++){
 
-            // phong lighting
-            Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(minPosT));
-            Vector normal = unitVector(intersectionPoint.subtract(this->center));
-            for(int i=0;i<lightSourceArray.size();i++){
+            bool inShadow = false;
 
-                bool inShadow = false;
-                Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
-                Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
-                double* dummyColor = new double[3];
-                double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
+            Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
+            Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
 
-                for(int k=0; k<objectArray.size(); k++){
-                    double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
-                    if(dist>tempT && tempT > 0){
-                        inShadow = true;
-                        break;
-                    }
-                }
-                if(!inShadow){
-                    double lambertValue = dotProduct(normal, rayTemp.dir);
-                    Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
-                    double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
-                    if(lambertValue < 0) continue;
+            double* dummyColor = new double[3];
+            double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
 
-                    color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*this->color[0];
-                    color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*this->color[1];
-                    color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*this->color[2];
-
-                    if(phongValue < 0) continue;
-
-                    color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*this->color[0];
-                    color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*this->color[1];
-                    color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*this->color[2];
+            for(int k=0; k<objectArray.size(); k++){
+                double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
+                if(dist>tempT && tempT > 0){
+                    inShadow = true;
+                    break;
                 }
             }
 
-            color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 1:color[0];
-            color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
-            color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
+            delete[] dummyColor;
 
-        } else{
-            return minPosT;
+            if(!inShadow){
+
+                double lambertValue = dotProduct(normal, rayTemp.dir);
+                Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
+                double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
+
+                if(lambertValue < 0) lambertValue = 0;
+
+                color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*this->color[0];
+                color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*this->color[1];
+                color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*this->color[2];
+
+                if(phongValue < 0) phongValue = 0;
+
+                color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*this->color[0];
+                color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*this->color[1];
+                color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*this->color[2];
+            }
         }
 
+        color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 1:color[0];
+        color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
+        color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
 
+        
+
+        // recursive reflection
 
         if(level >= levelOfRecursion){
             return minPosT;
         }
-        double rNearest=-1, rT=10000, rTempT, rTmin;
 
-        Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(minPosT));
+        double rNearest=-1, rT=T_INF, rTempT, rTmin;
 
-        Vector rNormal = unitVector(intersectionPoint.subtract(this->center));
-        double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
-        Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
-
-
-        Vector recursiveReflectionDirection = unitVector(reflectedRay);
-
-
-        //Vector recursiveReflectionDirection = unitVector(ray.start.subtract(intersectionPoint));
+        double rLambertValue = dotProduct(normal, ray.dir.scalarMultiply(-1));
+        Vector rReflectedRay = normal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+        Vector recursiveReflectionDirection = unitVector(rReflectedRay);
         Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
 
         double* colorReflected = new double[3];
 
         for(int k=0; k<objectArray.size(); k++){
             rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
-            if(rT>rTempT && rTempT <10000){
+            if(rT>rTempT && rTempT <T_INF){
                 rT = rTempT;
                 rNearest = k;
             }
         }
+
         colorReflected[0] = 0;
         colorReflected[1] = 0;
         colorReflected[2] = 0;
 
         if(rNearest >= 0){
             rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
-            if(rTmin > 0 && rTmin <10000){
+            if(rTmin > 0 && rTmin <T_INF){
                 color[0] += colorReflected[0]*this->coeffs[3];
                 color[1] += colorReflected[1]*this->coeffs[3];
                 color[2] += colorReflected[2]*this->coeffs[3];
             }
         }
 
-
-
-
-
-
+        delete[] colorReflected;
 
         return minPosT;
     }
@@ -400,131 +418,135 @@ class Triangle: public Object {
 
     double intersect(Ray ray, double color[3], int level){
 
-        double matA[3][3] ={{vertices[0].x - vertices[1].x, vertices[0].x - vertices[2].x, ray.dir.x},
-                            {vertices[0].y - vertices[1].y, vertices[0].y - vertices[2].y, ray.dir.y},
-                            {vertices[0].z - vertices[1].z, vertices[0].z - vertices[2].z, ray.dir.z}};
+        double matA[3][3]       =  {{vertices[0].x - vertices[1].x, vertices[0].x - vertices[2].x, ray.dir.x},
+                                    {vertices[0].y - vertices[1].y, vertices[0].y - vertices[2].y, ray.dir.y},
+                                    {vertices[0].z - vertices[1].z, vertices[0].z - vertices[2].z, ray.dir.z}};
 
-        double matBeta[3][3] = {{vertices[0].x - ray.start.x, vertices[0].x - vertices[2].x, ray.dir.x},
-                                {vertices[0].y - ray.start.y, vertices[0].y - vertices[2].y, ray.dir.y},
-                                {vertices[0].z - ray.start.z, vertices[0].z - vertices[2].z, ray.dir.z}};
+        double matBeta[3][3]    =  {{vertices[0].x - ray.start.x, vertices[0].x - vertices[2].x, ray.dir.x},
+                                    {vertices[0].y - ray.start.y, vertices[0].y - vertices[2].y, ray.dir.y},
+                                    {vertices[0].z - ray.start.z, vertices[0].z - vertices[2].z, ray.dir.z}};
 
 
-        double matGamma[3][3] = {{vertices[0].x - vertices[1].x, vertices[0].x - ray.start.x, ray.dir.x},
-                                {vertices[0].y - vertices[1].y, vertices[0].y - ray.start.y, ray.dir.y},
-                                {vertices[0].z - vertices[1].z, vertices[0].z - ray.start.z, ray.dir.z}};
+        double matGamma[3][3]   =  {{vertices[0].x - vertices[1].x, vertices[0].x - ray.start.x, ray.dir.x},
+                                    {vertices[0].y - vertices[1].y, vertices[0].y - ray.start.y, ray.dir.y},
+                                    {vertices[0].z - vertices[1].z, vertices[0].z - ray.start.z, ray.dir.z}};
 
-        double matT[3][3] = {{vertices[0].x - vertices[1].x, vertices[0].x - vertices[2].x, vertices[0].x - ray.start.x},
-                             {vertices[0].y - vertices[1].y, vertices[0].y - vertices[2].y, vertices[0].y - ray.start.y},
-                             {vertices[0].z - vertices[1].z, vertices[0].z - vertices[2].z, vertices[0].z - ray.start.z}};
+        double matT[3][3]       =  {{vertices[0].x - vertices[1].x, vertices[0].x - vertices[2].x, vertices[0].x - ray.start.x},
+                                    {vertices[0].y - vertices[1].y, vertices[0].y - vertices[2].y, vertices[0].y - ray.start.y},
+                                    {vertices[0].z - vertices[1].z, vertices[0].z - vertices[2].z, vertices[0].z - ray.start.z}};
 
-        double t = 10000;
+        double t = T_INF;
         double detA = determinant(matA);
+        
         if(detA != 0){
+
             double beta = determinant(matBeta)/detA;
             double gamma = determinant(matGamma)/detA;
             t = determinant(matT)/detA;
 
-
-            if((beta+gamma < 1)&&(beta > 0)&&(gamma > 0)&&(t> nearDist)){
+            if((beta + gamma < 1) && (beta > 0) && (gamma > 0) && (t > nearDist)){
+                
                 if(level == 0) return t;
-                if(level > 0){
-                    /*color[0] = this->color[0];
-                    color[1] = this->color[1];
-                    color[2] = this->color[2];*/
-                    color[0] = this->color[0]*coeffs[0];
-                    color[1] = this->color[1]*coeffs[0];
-                    color[2] = this->color[2]*coeffs[0];
+            
+                // phong lighting 
 
-                    // phong lighting
-                    Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
-                    Vector normal = unitVector(crossProduct(vertices[1].subtract(vertices[0]),vertices[2].subtract(vertices[0])));
-                    if(dotProduct(normal,ray.dir) > 0) normal = normal.scalarMultiply(-1);
+                color[0] = this->color[0]*coeffs[0];
+                color[1] = this->color[1]*coeffs[0];
+                color[2] = this->color[2]*coeffs[0];
 
-                    for(int i=0;i<lightSourceArray.size();i++){
+                Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
+                Vector normal = unitVector(crossProduct(vertices[1].subtract(vertices[0]),vertices[2].subtract(vertices[0])));
+                
+                if(dotProduct(normal,ray.dir) > 0) normal = normal.scalarMultiply(-1);
 
-                        bool inShadow = false;
-                        Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
-                        Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
-                        double* dummyColor = new double[3];
-                        double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
+                for(int i=0;i<lightSourceArray.size();i++){
 
-                        for(int k=0; k<objectArray.size(); k++){
-                            double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
-                            if(dist>tempT && tempT > 0){
-                                inShadow = true;
-                                break;
-                            }
-                        }
-                        if(!inShadow){
-                            double lambertValue = dotProduct(normal, rayTemp.dir);
-                            Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
-                            double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
-                            if(lambertValue < 0) continue;
+                    bool inShadow = false;
+                    
+                    Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
+                    Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
+                    
+                    double* dummyColor = new double[3];
+                    double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
 
-                            color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*this->color[0];
-                            color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*this->color[1];
-                            color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*this->color[2];
-
-                            if(phongValue < 0) continue;
-
-                            color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*this->color[0];
-                            color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*this->color[1];
-                            color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*this->color[2];
+                    for(int k=0; k<objectArray.size(); k++){
+                        double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
+                        if(dist>tempT && tempT > 0){
+                            inShadow = true;
+                            break;
                         }
                     }
 
-                    color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 1:color[0];
-                    color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
-                    color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
+                    delete[] dummyColor;
 
+                    if(!inShadow){
+
+                        double lambertValue = dotProduct(normal, rayTemp.dir);
+                        Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
+                        double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
+
+                        if(lambertValue < 0) lambertValue = 0;
+
+                        color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*this->color[0];
+                        color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*this->color[1];
+                        color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*this->color[2];
+
+                        if(phongValue < 0) phongValue = 0;
+
+                        color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*this->color[0];
+                        color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*this->color[1];
+                        color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*this->color[2];
+                    }
                 }
+
+                color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 1:color[0];
+                color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
+                color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
+
+                
+                // recursive reflection
 
                 if(level >= levelOfRecursion){
                     return t;
                 }
 
-                double rNearest=-1, rT=10000, rTempT, rTmin;
-                Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
-                Vector rNormal = unitVector(crossProduct(vertices[1].subtract(vertices[0]),vertices[2].subtract(vertices[0])));
+                double rNearest=-1, rT=T_INF, rTempT, rTmin;
 
-                double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
-                Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
-
-
-                Vector recursiveReflectionDirection = unitVector(reflectedRay);
-
-                //Vector recursiveReflectionDirection = unitVector(ray.start.subtract(intersectionPoint));
+                double rLambertValue = dotProduct(normal, ray.dir.scalarMultiply(-1));
+                Vector rReflectedRay = normal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+                Vector recursiveReflectionDirection = unitVector(rReflectedRay);
                 Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
+                
                 double* colorReflected = new double[3];
+
                 for(int k=0; k<objectArray.size(); k++){
                     rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
-                    if(rT>rTempT && rTempT <10000){
+                    if(rT>rTempT && rTempT <T_INF){
                         rT = rTempT;
                         rNearest = k;
                     }
                 }
+
                 colorReflected[0] = 0;
                 colorReflected[1] = 0;
                 colorReflected[2] = 0;
 
                 if(rNearest >= 0){
                     rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
-                        if(rTmin > 0 && rTmin <10000){
+                    if(rTmin > 0 && rTmin <T_INF){
                         color[0] += colorReflected[0]*this->coeffs[3];
                         color[1] += colorReflected[1]*this->coeffs[3];
                         color[2] += colorReflected[2]*this->coeffs[3];
                     }
                 }
+
+                delete[] colorReflected;
             }
-
-
-
-
-            else{
-                t = 10000;
+            else
+            {
+                t = T_INF;
             }
         }
-
         return t;
     }
 
@@ -562,6 +584,7 @@ class GeneralObject: public Object {
     }
 
     double intersect(Ray ray, double color[3], int level){
+
         double a = eqnCoeffs[0];
         double b = eqnCoeffs[1];
         double c = eqnCoeffs[2];
@@ -586,19 +609,23 @@ class GeneralObject: public Object {
         double cq = a*xo*xo + b*yo*yo + c*zo*zo + d*xo*yo + e*xo*zo + f*yo*zo + g*xo + h*yo + i*zo + j;
 
         double det = bq*bq - 4*aq*cq;
-        double minPosT = 10000;
+        double minPosT = T_INF;
         double t1,t2;
 
-        if(aq == 0){
+        if(aq == 0)
+        {
             t1 = (-1)*(cq/bq);
             t2 = t1;
         }
-        else{
-            if(det >= 0){
-                t1 =( - bq - sqrt(det))/ (2*aq);
-                t2 =( - bq + sqrt(det))/ (2*aq);
+        else
+        {
+            if(det >= 0)
+            {
+                t1 =(- bq - sqrt(det)) / (2 * aq);
+                t2 =(- bq + sqrt(det)) / (2 * aq);
             }
-            else{
+            else
+            {
                 return minPosT;
             }
         }
@@ -606,124 +633,74 @@ class GeneralObject: public Object {
         Vector intersectionPointT1 = ray.start.add(ray.dir.scalarMultiply(t1));
         Vector intersectionPointT2 = ray.start.add(ray.dir.scalarMultiply(t2));
 
-
         bool insideCubeT1 = true;
         bool insideCubeT2 = true;
 
-        if(height != 0){
-            if(abs(intersectionPointT1.z) < abs(cubeReferencePoint.z) || abs(intersectionPointT1.z) > abs(cubeReferencePoint.z) + height){
+        if(height != 0)
+        {
+            if(abs(intersectionPointT1.z) < abs(cubeReferencePoint.z) || abs(intersectionPointT1.z) > abs(cubeReferencePoint.z) + height)
+            {
                 insideCubeT1 = false;
             }
-            if(abs(intersectionPointT2.z) < abs(cubeReferencePoint.z) || abs(intersectionPointT2.z) > abs(cubeReferencePoint.z) + height){
+
+            if(abs(intersectionPointT2.z) < abs(cubeReferencePoint.z) || abs(intersectionPointT2.z) > abs(cubeReferencePoint.z) + height)
+            {
                 insideCubeT2 = false;
             }
         }
 
-        if(length != 0){
-            if(abs(intersectionPointT1.x) < abs(cubeReferencePoint.x) || abs(intersectionPointT1.x) > abs(cubeReferencePoint.x) + length){
+        if(length != 0)
+        {
+            if(abs(intersectionPointT1.x) < abs(cubeReferencePoint.x) || abs(intersectionPointT1.x) > abs(cubeReferencePoint.x) + length)
+            {
                 insideCubeT1 = false;
             }
-            if(abs(intersectionPointT2.x) < abs(cubeReferencePoint.x) || abs(intersectionPointT2.x) > abs(cubeReferencePoint.x) + length){
+
+            if(abs(intersectionPointT2.x) < abs(cubeReferencePoint.x) || abs(intersectionPointT2.x) > abs(cubeReferencePoint.x) + length)
+            {
                 insideCubeT2 = false;
             }
         }
 
         if(width != 0){
-            if(abs(intersectionPointT1.y) < abs(cubeReferencePoint.y) || abs(intersectionPointT1.y) > abs(cubeReferencePoint.y) + width){
+            if(abs(intersectionPointT1.y) < abs(cubeReferencePoint.y) || abs(intersectionPointT1.y) > abs(cubeReferencePoint.y) + width)
+            {
                 insideCubeT1 = false;
             }
-            if(abs(intersectionPointT2.y) < abs(cubeReferencePoint.y) || abs(intersectionPointT2.y) > abs(cubeReferencePoint.y) + width){
+
+            if(abs(intersectionPointT2.y) < abs(cubeReferencePoint.y) || abs(intersectionPointT2.y) > abs(cubeReferencePoint.y) + width)
+            {
                 insideCubeT2 = false;
             }
         }
 
-        if(!insideCubeT1 && !insideCubeT2){
-            minPosT = 10000;
+        if(!insideCubeT1 && !insideCubeT2)
+        {
+            minPosT = T_INF;
             return minPosT;
         }
-        else if(!insideCubeT1){
+        else if(!insideCubeT1)
+        {
             minPosT = t2;
         }
-        else if(!insideCubeT2){
+        else if(!insideCubeT2)
+        {
             minPosT = t1;
         }
-        else{
-            minPosT = t1;//(t1<t2)?t1:t2;
+        else
+        {
+            minPosT = t1;
         }
 
-        if(minPosT <= 0) return 10000;
+        if(minPosT <= 0) return T_INF;
+
         if(level == 0) return minPosT;
-        /*if(level>0){
-            color[0] = this->color[0]*255;
-            color[1] = this->color[1]*255;
-            color[2] = this->color[2]*255;
-        }*/
+        
+        // phong lighting
 
-        if(level > 0){
-            color[0] = this->color[0]*coeffs[0];
-            color[1] = this->color[1]*coeffs[0];
-            color[2] = this->color[2]*coeffs[0];
-
-            // phong lighting
-            Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(minPosT));
-
-            double xi = intersectionPoint.x;
-            double yi = intersectionPoint.y;
-            double zi = intersectionPoint.z;
-
-            Vector surfaceNormal;
-            surfaceNormal.x = 2*a*xi + d*yi + e*zi + g;
-            surfaceNormal.y = 2*b*yi + d*xi + f*zi + h;
-            surfaceNormal.z = 2*c*zi + e*xi + f*yi + i;
-
-            if(dotProduct(ray.start.subtract(intersectionPoint),ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
-
-            Vector normal = unitVector(surfaceNormal);
-
-            for(int i=0;i<lightSourceArray.size();i++){
-
-                bool inShadow = false;
-                Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
-                Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
-                double* dummyColor = new double[3];
-                double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
-
-                for(int k=0; k<objectArray.size(); k++){
-                    double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
-                    if(dist>tempT && tempT > 0){
-                        inShadow = true;
-                        break;
-                    }
-                }
-                if(!inShadow){
-                    double lambertValue = dotProduct(normal, rayTemp.dir);
-                    Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
-                    double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
-                    if(lambertValue < 0) lambertValue = 0;
-
-                    color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*this->color[0];
-                    color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*this->color[1];
-                    color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*this->color[2];
-
-                    if(phongValue < 0) phongValue = 0;
-
-                    color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*this->color[0];
-                    color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*this->color[1];
-                    color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*this->color[2];
-                }
-            }
-
-            color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 1:color[0];
-            color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
-            color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
-
-        }
-
-        if(level >= levelOfRecursion){
-            return minPosT;
-        }
-
-        double rNearest=-1, rT=10000, rTempT, rTmin;
+        color[0] = this->color[0]*coeffs[0];
+        color[1] = this->color[1]*coeffs[0];
+        color[2] = this->color[2]*coeffs[0];
 
         Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(minPosT));
 
@@ -732,47 +709,98 @@ class GeneralObject: public Object {
         double zi = intersectionPoint.z;
 
         Vector surfaceNormal;
+
         surfaceNormal.x = 2*a*xi + d*yi + e*zi + g;
         surfaceNormal.y = 2*b*yi + d*xi + f*zi + h;
         surfaceNormal.z = 2*c*zi + e*xi + f*yi + i;
 
         if(dotProduct(ray.start.subtract(intersectionPoint),ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
 
-        //if(dotProduct(surfaceNormal,ray.dir) > 0) surfaceNormal = surfaceNormal.scalarMultiply(-1);
+        Vector normal = unitVector(surfaceNormal);
 
-        Vector rNormal = unitVector(surfaceNormal);
-        double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
-        Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+        for(int i=0;i<lightSourceArray.size();i++){
 
+            bool inShadow = false;
 
-        Vector recursiveReflectionDirection = unitVector(reflectedRay);
-        //Vector recursiveReflectionDirection = unitVector(ray.start.subtract(intersectionPoint));
+            Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
+            Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
+            double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
+            
+            double* dummyColor = new double[3];
+            
+            for(int k=0; k<objectArray.size(); k++){
+                double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
+                if(dist>tempT && tempT > 0){
+                    inShadow = true;
+                    break;
+                }
+            }
+
+            delete[] dummyColor;
+
+            if(!inShadow){
+
+                double lambertValue = dotProduct(normal, rayTemp.dir);
+                Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
+                double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
+
+                if(lambertValue < 0) lambertValue = 0;
+
+                color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*this->color[0];
+                color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*this->color[1];
+                color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*this->color[2];
+
+                if(phongValue < 0) phongValue = 0;
+
+                color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*this->color[0];
+                color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*this->color[1];
+                color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*this->color[2];
+            }
+        }
+
+        color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 1:color[0];
+        color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 1:color[1];
+        color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 1:color[2];
+
+        
+        // recursive reflection
+
+        if(level >= levelOfRecursion){
+            return minPosT;
+        }
+
+        double rNearest=-1, rT=T_INF, rTempT, rTmin;
+
+        double rLambertValue = dotProduct(normal, ray.dir.scalarMultiply(-1));
+        Vector rReflectedRay = normal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+        Vector recursiveReflectionDirection = unitVector(rReflectedRay);
+        
         Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
+
         double* colorReflected = new double[3];
+
         for(int k=0; k<objectArray.size(); k++){
             rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
-            if(rT>rTempT && rTempT<10000){
+            if(rT>rTempT && rTempT<T_INF){
                 rT = rTempT;
                 rNearest = k;
             }
         }
+
         colorReflected[0] = 0;
         colorReflected[1] = 0;
         colorReflected[2] = 0;
 
         if(rNearest >= 0){
             rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
-            if(rTmin > 0 && rTmin <10000){
+            if(rTmin > 0 && rTmin <T_INF){
                 color[0] += colorReflected[0]*this->coeffs[3];
                 color[1] += colorReflected[1]*this->coeffs[3];
                 color[2] += colorReflected[2]*this->coeffs[3];
             }
         }
 
-
-
-
-
+        delete[] colorReflected;
 
         return minPosT;
     }
@@ -782,7 +810,13 @@ class GeneralObject: public Object {
 
 class Floor: public Object {
  public:
-    Floor() {}
+    Floor() {
+        this->coeffs[0] = 0.4;
+        this->coeffs[1] = 0.4;
+        this->coeffs[2] = 0.3;
+        this->coeffs[3] = 0.3;
+        this->shine = 20;
+    }
 
     void print(){
         cout << "Floor: \n";
@@ -792,127 +826,122 @@ class Floor: public Object {
     }
 
     double intersect(Ray ray, double* color, int level){
-        double d = 0;
-        Vector n(0,0,1);
-        if(dotProduct(n,ray.dir) > 0) n = n.scalarMultiply(-1);
-        double t = 10000;
-        if(dotProduct(n,ray.dir) != 0){
-            t = -1 * (d + dotProduct(n,ray.start)) / dotProduct(n,ray.dir);
 
-            Vector intersection_point = ray.start.add(ray.dir.scalarMultiply(t));
+        double d = 0, t = T_INF;
+        
+        Vector normal(0,0,1), intersectionPoint;
+
+        if(dotProduct(normal,ray.dir) > 0) normal = normal.scalarMultiply(-1);
+
+        if(dotProduct(normal,ray.dir) != 0){
+
+            t = -1 * (d + dotProduct(normal,ray.start)) / dotProduct(normal,ray.dir);
+
+            intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
 
 
-            if((intersection_point.x >= -500 && intersection_point.x <= 500) && (intersection_point.y >= -500 && intersection_point.y <= 500) && t>nearDist){
-                int pixelX = (int)((cubeReferencePoint.x - intersection_point.x)/length);
-                int pixelY = (int)((cubeReferencePoint.y - intersection_point.y)/length);
-                double colorValue = -1;
-                if(level==0) return t;
-                if((pixelX + pixelY)%2==0){
-                    /*color[0] = 1;
-                    color[1] = 1;
-                    color[2] = 1;*/
-                    colorValue = 0.7;
+            if((intersectionPoint.x >= this->cubeReferencePoint.x && intersectionPoint.x <= this->cubeReferencePoint.x + width) && (intersectionPoint.y >= this->cubeReferencePoint.y && intersectionPoint.y <= this->cubeReferencePoint.y + width) && (t > nearDist)){
+                
+                if(level == 0) return t;
 
-                } else{
-                    /*color[0] = 0;
-                    color[1] = 0;
-                    color[2] = 0;*/
-                    colorValue = 0;
-                }
+                int pixelX = (int)((cubeReferencePoint.x - intersectionPoint.x) / length);
+                int pixelY = (int)((cubeReferencePoint.y - intersectionPoint.y) / length);
+                
+                double colorValue = ((pixelX + pixelY)%2==0)?0.8:0;
+                
+                // phong lighting
 
-                if(level > 0 && colorValue >= 0){
-                    color[0] = colorValue*coeffs[0];
-                    color[1] = colorValue*coeffs[0];
-                    color[2] = colorValue*coeffs[0];
+                color[0] = colorValue*coeffs[0];
+                color[1] = colorValue*coeffs[0];
+                color[2] = colorValue*coeffs[0];
 
-                    // phong lighting
-                    this->coeffs[0] = 0.4;
-                    this->coeffs[1] = 0.2;
-                    this->coeffs[2] = 0.1;
-                    this->coeffs[3] = 0.3;
-                    this->shine = 5;
 
-                    Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
-                    Vector normal = unitVector(n);
+                for(int i=0;i<lightSourceArray.size();i++){
 
-                    for(int i=0;i<lightSourceArray.size();i++){
+                    bool inShadow = false;
 
-                        bool inShadow = false;
-                        Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
-                        Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
-                        double* dummyColor = new double[3];
-                        double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
+                    Vector direction = unitVector(lightSourceArray[i].position.subtract(intersectionPoint));
+                    Ray rayTemp(intersectionPoint.add(direction.scalarMultiply(0.0001)), direction);
+                    double dist = valueOfVector(intersectionPoint.subtract(lightSourceArray[i].position));
 
-                        for(int k=0; k<objectArray.size(); k++){
-                            double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
-                            if(dist>tempT && tempT > 0){
-                                inShadow = true;
-                                break;
-                            }
-                        }
-                        if(!inShadow){
-                            double lambertValue = dotProduct(normal, rayTemp.dir);
-                            Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
-                            double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
-                            if(lambertValue < 0) continue;
-
-                            color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*colorValue;
-                            color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*colorValue;
-                            color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*colorValue;
-
-                            if(phongValue < 0) continue;
-
-                            color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*colorValue;
-                            color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*colorValue;
-                            color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*colorValue;
+                    double* dummyColor = new double[3];
+                    
+                    for(int k=0; k<objectArray.size(); k++){
+                        double tempT = objectArray.at(k)->intersect(rayTemp, dummyColor, 0);
+                        if(dist>tempT && tempT > 0){
+                            inShadow = true;
+                            break;
                         }
                     }
 
-                    color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 0.7:color[0];
-                    color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 0.7:color[1];
-                    color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 0.7:color[2];
+                    delete[] dummyColor;
+
+                    if(!inShadow){
+
+                        double lambertValue = dotProduct(normal, rayTemp.dir);
+                        Vector reflectedRay = normal.scalarMultiply(2*lambertValue).subtract(rayTemp.dir);
+                        double phongValue = dotProduct(reflectedRay,ray.dir.scalarMultiply(-1));
+
+                        if(lambertValue < 0) lambertValue = 0;
+
+                        color[0] += lightSourceArray[i].color[0]*coeffs[1]*lambertValue*colorValue;
+                        color[1] += lightSourceArray[i].color[1]*coeffs[1]*lambertValue*colorValue;
+                        color[2] += lightSourceArray[i].color[2]*coeffs[1]*lambertValue*colorValue;
+
+                        if(phongValue < 0) phongValue = 0;
+
+                        color[0] += lightSourceArray[i].color[0]*coeffs[2]*pow(phongValue, this->shine)*colorValue;
+                        color[1] += lightSourceArray[i].color[1]*coeffs[2]*pow(phongValue, this->shine)*colorValue;
+                        color[2] += lightSourceArray[i].color[2]*coeffs[2]*pow(phongValue, this->shine)*colorValue;
+                    }
                 }
+
+                color[0] = (color[0]<0) ? 0 : (color[0] > 1)? 0.8:color[0];
+                color[1] = (color[1]<0) ? 0 : (color[1] > 1)? 0.8:color[1];
+                color[2] = (color[2]<0) ? 0 : (color[2] > 1)? 0.8:color[2];
+                
+
+                // recursive reflection
 
                 if(level >= levelOfRecursion){
                     return t;
                 }
 
-                double rNearest=-1, rT=10000, rTempT, rTmin;
+                double rNearest=-1, rT=T_INF, rTempT, rTmin;
 
-                Vector intersectionPoint = ray.start.add(ray.dir.scalarMultiply(t));
-                Vector rNormal = unitVector(n);
-                double rLambertValue = dotProduct(rNormal, ray.dir.scalarMultiply(-1));
-                Vector reflectedRay = rNormal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
-
-
-                Vector recursiveReflectionDirection = unitVector(reflectedRay);
+                double rLambertValue = dotProduct(normal, ray.dir.scalarMultiply(-1));
+                Vector rReflectedRay = normal.scalarMultiply(2*rLambertValue).subtract(ray.dir.scalarMultiply(-1));
+                Vector recursiveReflectionDirection = unitVector(rReflectedRay);
                 Ray recursiveReflectionRay(intersectionPoint.add(recursiveReflectionDirection.scalarMultiply(0.0001)), recursiveReflectionDirection);
+
                 double* colorReflected = new double[3];
 
                 for(int k=0; k<objectArray.size(); k++){
                     rTempT = objectArray.at(k)->intersect(recursiveReflectionRay, colorReflected, 0);
-                    if(rT>rTempT && rTempT < 10000){
+                    if(rT>rTempT && rTempT < T_INF){
                         rT = rTempT;
                         rNearest = k;
                     }
                 }
+
                 colorReflected[0] = 0;
                 colorReflected[1] = 0;
                 colorReflected[2] = 0;
 
                 if(rNearest >= 0){
                     rTmin = objectArray.at(rNearest)->intersect(recursiveReflectionRay, colorReflected, level+1);
-                    if(rTmin > 0 && rTmin < 10000){
+                    if(rTmin > 0 && rTmin < T_INF){
                         color[0] += colorReflected[0]*this->coeffs[3];
                         color[1] += colorReflected[1]*this->coeffs[3];
                         color[2] += colorReflected[2]*this->coeffs[3];
                     }
                 }
 
-
+                delete[] colorReflected;
             }
-            else{
-                t = 10000;
+            else
+            {
+                t = T_INF;
             }
         }
         return t;
